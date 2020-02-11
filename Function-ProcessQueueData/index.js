@@ -2,18 +2,26 @@
 
 const sql = require('mssql')
 const uuidv4 = require('uuid/v4');
+var AWS = require('aws-sdk');
 
 exports.handler = async (event) => {
     
     console.log("triggered from queue")
-    console.log("Customer Id from queue ", event.Records[0].messageAttributes.CustomerId['stringValue'])
+    let customerId
+    if(event.Records === undefined) {
+        customerId = event.customerId
+    }
+    else {
+        customerId = event.Records[0].messageAttributes.CustomerId['stringValue']
+    }
+    console.log("Customer Id from queue ", customerId)
 
-    let customerId = event.Records[0].messageAttributes.CustomerId['stringValue']
+    
     //let customerId = event.customerId
 
     console.log("Customer id is ", customerId)
 
-    let existingCardTypeId, proposedCardTypeId
+    let existingCardTypeId, proposedCardTypeId, Email
 
      const config = {
         user: process.env.DB_USERNAME,
@@ -43,7 +51,7 @@ exports.handler = async (event) => {
 
         result = await pool.request()
             .input('lookupValue', sql.NVarChar, customerId)
-            .query('select * from CustomerCardInfo where CustomerId = @lookupValue order by CardTypeId desc')
+            .query('select CustomerCardInfo.*, UserInfo.Email from CustomerCardInfo inner join UserInfo on CustomerCardInfo.CustomerId = UserInfo.CustomerId where CustomerCardInfo.CustomerId = @lookupValue order by CardTypeId desc')
 
         console.log("Getting CardType Details ", result)
         
@@ -56,6 +64,7 @@ exports.handler = async (event) => {
         }
 
         existingCardTypeId = result.recordset[0].CardTypeId
+        Email = result.recordset[0].Email
 
         console.log('Existing card type id is ', existingCardTypeId)
 
@@ -92,10 +101,29 @@ exports.handler = async (event) => {
 
         pool.close()
 
+        // Load the AWS SDK for Node.js
 
+// Set region
+        AWS.config.update({region: 'us-west-2'});
 
+// Create publish parameters
+        var params = {
+        Message: Email, /* required */
+        TopicArn: process.env.SNS_ARN
+        };
 
+        // Create promise and SNS service object
+        var publishTextPromise = new AWS.SNS({apiVersion: '2010-03-31'}).publish(params).promise();
 
+        // Handle promise's fulfilled/rejected states
+        publishTextPromise.then(
+        function(data) {
+            console.log(`Message ${params.Message} send sent to the topic ${params.TopicArn}`);
+            console.log("MessageID is " + data.MessageId);
+        }).catch(
+            function(err) {
+            console.error(err, err.stack);
+        });
 
     }
     catch(err)
@@ -108,13 +136,10 @@ exports.handler = async (event) => {
         }
     }
 
-
-
-
     // TODO implement
     const response = {
         statusCode: 200,
-        body: JSON.stringify('Hello from Lambda!'),
+        body: JSON.stringify('Data successfully processed'),
     };
     return response;
 };
