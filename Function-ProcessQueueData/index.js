@@ -101,6 +101,11 @@ exports.handler = async (event) => {
 
         pool.close()
 
+        const payLoad = {
+            CustomerEmail: Email,
+            CustomerGuid: guid
+        }
+
         // Load the AWS SDK for Node.js
 
 // Set region
@@ -108,22 +113,24 @@ exports.handler = async (event) => {
 
 // Create publish parameters
         var params = {
-        Message: Email, /* required */
+        Message: JSON.stringify(payLoad), /* required */
         TopicArn: process.env.SNS_ARN
         };
 
         // Create promise and SNS service object
-        var publishTextPromise = new AWS.SNS({apiVersion: '2010-03-31'}).publish(params).promise();
+        var publishTextPromise = await new AWS.SNS({apiVersion: '2010-03-31'}).publish(params).promise();
 
         // Handle promise's fulfilled/rejected states
-        publishTextPromise.then(
+
+        console.log(publishTextPromise)
+       /* publishTextPromise.then(
         function(data) {
             console.log(`Message ${params.Message} send sent to the topic ${params.TopicArn}`);
             console.log("MessageID is " + data.MessageId);
         }).catch(
             function(err) {
             console.error(err, err.stack);
-        });
+        }); */
 
     }
     catch(err)
