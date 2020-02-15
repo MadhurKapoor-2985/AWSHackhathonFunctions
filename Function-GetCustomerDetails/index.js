@@ -16,7 +16,7 @@ exports.handler = async (event) => {
         }
     }
 
-    let result, customerId, existingCardId, UserInfo, ExistingCardDetails
+    let result, customerId, existingCardId, UserInfo, ExistingCardDetails, benefitDetails
 
     try {
         // Open DB Connection
@@ -43,6 +43,17 @@ exports.handler = async (event) => {
             .input('lookupValue', sql.NVarChar, customerId)
             .query('select * from UserInfo where CustomerId = @lookupValue');
 
+        if(result.recordset[0] === undefined) {
+            pool.close();
+            return {
+                statusCode: 404,
+                body: JSON.stringify('User Record not found')
+            }
+
+        }   
+
+        console.log("User Details are ", result.recordset[0])
+
         UserInfo = JSON.parse(JSON.stringify(result.recordset[0]))
 
         console.log("User Information is ", UserInfo)
@@ -55,6 +66,15 @@ exports.handler = async (event) => {
         ExistingCardDetails = JSON.parse(JSON.stringify(result.recordset[0]))
 
         console.log("Exisitng card details is ", ExistingCardDetails)
+
+        result = await pool.request()
+            .input('lookupValue', sql.NVarChar, existingCardId)
+            .query('select Benefits.BenefitId, Description from CardBenefits inner join Benefits on CardBenefits.BenefitId = Benefits.BenefitId where CardTypeId = @lookupValue');
+
+
+        benefitDetails = JSON.parse(JSON.stringify(result.recordset))
+
+        console.log("Exisiting Card Benefits are ", benefitDetails)
 
         // Close DB Connection
         pool.close();
@@ -72,7 +92,8 @@ exports.handler = async (event) => {
     
     const output = {
         CustomerDetails: UserInfo,
-        CardInfo: ExistingCardDetails
+        CardInfo: ExistingCardDetails,
+        CardBenefits: benefitDetails
     }
     
     return {
