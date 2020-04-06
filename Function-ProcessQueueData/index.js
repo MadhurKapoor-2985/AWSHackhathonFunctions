@@ -84,6 +84,9 @@ exports.handler = async (event) => {
 
         proposedCardTypeId = result.recordset[0].CardTypeId
 
+        var lattitude  = 13.1986
+        var longitude = 77.7066
+
         
 
         const guid = uuidv4()
@@ -95,7 +98,9 @@ exports.handler = async (event) => {
            .input('guid', sql.NVarChar, guid)
            .input('existingCardTypeId', sql.Numeric, existingCardTypeId)
            .input('proposedCardTypeId', sql.Numeric, proposedCardTypeId)
-           .query('Insert into TempUserInfo(Guid, CustomerId, ExistingCardId, ProposedCardId) values(@guid, @customerId, @existingCardTypeId, @proposedCardTypeId)')
+           .input('lattitude', sql.Float, lattitude)
+           .input('longitude', sql.Float, longitude)
+           .query('Insert into TempUserInfo(Guid, CustomerId, ExistingCardId, ProposedCardId, Lattitude, Longitude) values(@guid, @customerId, @existingCardTypeId, @proposedCardTypeId, @lattitude, @longitude)')
 
         console.log(result)
 
@@ -103,7 +108,8 @@ exports.handler = async (event) => {
 
         const payLoad = {
             CustomerEmail: Email,
-            CustomerGuid: guid
+            CustomerGuid: guid,
+            MessageType: '1'
         }
 
         // Load the AWS SDK for Node.js
