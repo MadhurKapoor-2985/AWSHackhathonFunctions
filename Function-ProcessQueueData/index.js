@@ -100,7 +100,8 @@ exports.handler = async (event) => {
            .input('proposedCardTypeId', sql.Numeric, proposedCardTypeId)
            .input('lattitude', sql.Float, lattitude)
            .input('longitude', sql.Float, longitude)
-           .query('Insert into TempUserInfo(Guid, CustomerId, ExistingCardId, ProposedCardId, Lattitude, Longitude) values(@guid, @customerId, @existingCardTypeId, @proposedCardTypeId, @lattitude, @longitude)')
+           .input('customerEmail', sql.NVarChar, Email)
+           .query('Insert into TempUserInfo(Guid, CustomerId, ExistingCardId, ProposedCardId, Lattitude, Longitude, CustomerEmail) values(@guid, @customerId, @existingCardTypeId, @proposedCardTypeId, @lattitude, @longitude, @customerEmail)')
 
         console.log(result)
 
