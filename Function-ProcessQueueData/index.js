@@ -3,12 +3,15 @@
 const sql = require('mssql')
 const uuidv4 = require('uuid/v4');
 var AWS = require('aws-sdk');
+const axios = require('axios')
+
 
 exports.handler = async (event) => {
     
     console.log("triggered from queue")
     let customerId
     console.log ('Event is, ', event)
+    openApiUrl = process.env.OPEN_API_URL
 
     if(event.Records === undefined) {
         customerId = event.customerId
@@ -49,7 +52,7 @@ exports.handler = async (event) => {
 
         result = await pool.request()
             .input('lookupValue', sql.NVarChar, customerId)
-            .query('select CustomerCardInfo.*, UserInfo.Email, UserInfo.City from CustomerCardInfo inner join UserInfo on CustomerCardInfo.CustomerId = UserInfo.CustomerId where CustomerCardInfo.CustomerId = @lookupValue order by CardTypeId desc')
+            .query('select CustomerCardInfo.*, UserInfo.Email, UserInfo.City, UserInfo.PhoneNumber from CustomerCardInfo inner join UserInfo on CustomerCardInfo.CustomerId = UserInfo.CustomerId where CustomerCardInfo.CustomerId = @lookupValue order by CardTypeId desc')
 
         console.log("Getting CardType Details ", result)
         
@@ -62,15 +65,44 @@ exports.handler = async (event) => {
         }
 
         existingCardTypeId = result.recordset[0].CardTypeId
+        existingCreditLimit = result.recordset[0].CreditLimit
         Email = result.recordset[0].Email
         City = result.recordset[0].City
         DeviceLocation = process.env.LOCATION
+        PhoneNumber = result.recordset[0].PhoneNumber
 
         console.log('Existing card type id is ', existingCardTypeId)
+        finalUrl = openApiUrl + '?phoneNumber=' + PhoneNumber
+
+        await axios.get(finalUrl)
+        .then(data => {
+
+            console.log('Got data from Open API', data.data)
+
+            creditLimitarray = data.data.body.CreditLimit
+
+
+            creditLimitarray.forEach(function(limit) {
+                if(limit > existingCreditLimit) {
+                    existingCreditLimit = limit
+                }
+             });
+
+        })
+        .catch(error => {
+            console.log(error)
+            pool.close()
+            return {
+                statusCode: 400,
+                body: "Some Error occured"
+            }
+        })
+
+        console.log('Existing credit limit to check after OpenAPI ', existingCreditLimit)
 
         result = await pool.request()
-            .input('lookupValue', sql.NVarChar, existingCardTypeId)
-            .query('select * from CardTypes where CardTypeId > @lookupValue order by CardTypeId')
+            .input('lookupValue', sql.NVarChar, existingCreditLimit)
+            .query('select * from CardTypes where CreditLimit > @lookupValue order by CardTypeId')
 
         console.log("Valid Card Type id ", result)
 
