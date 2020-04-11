@@ -8,18 +8,16 @@ exports.handler = async (event) => {
     
     console.log("triggered from queue")
     let customerId
+    console.log ('Event is, ', event)
+
     if(event.Records === undefined) {
         customerId = event.customerId
     }
     else {
+        console.log('Event Records message attributes is', event.Records[0].messageAttributes)
         customerId = event.Records[0].messageAttributes.CustomerId['stringValue']
     }
     console.log("Customer Id from queue ", customerId)
-
-    
-    //let customerId = event.customerId
-
-    console.log("Customer id is ", customerId)
 
     let existingCardTypeId, proposedCardTypeId, Email
 
@@ -51,7 +49,7 @@ exports.handler = async (event) => {
 
         result = await pool.request()
             .input('lookupValue', sql.NVarChar, customerId)
-            .query('select CustomerCardInfo.*, UserInfo.Email from CustomerCardInfo inner join UserInfo on CustomerCardInfo.CustomerId = UserInfo.CustomerId where CustomerCardInfo.CustomerId = @lookupValue order by CardTypeId desc')
+            .query('select CustomerCardInfo.*, UserInfo.Email, UserInfo.City from CustomerCardInfo inner join UserInfo on CustomerCardInfo.CustomerId = UserInfo.CustomerId where CustomerCardInfo.CustomerId = @lookupValue order by CardTypeId desc')
 
         console.log("Getting CardType Details ", result)
         
@@ -65,6 +63,8 @@ exports.handler = async (event) => {
 
         existingCardTypeId = result.recordset[0].CardTypeId
         Email = result.recordset[0].Email
+        City = result.recordset[0].City
+        DeviceLocation = process.env.LOCATION
 
         console.log('Existing card type id is ', existingCardTypeId)
 
@@ -84,10 +84,8 @@ exports.handler = async (event) => {
 
         proposedCardTypeId = result.recordset[0].CardTypeId
 
-        var lattitude  = 13.1986
-        var longitude = 77.7066
-
-        
+        var lattitude  = process.env.LATTITUDE
+        var longitude = process.env.LONGITUDE
 
         const guid = uuidv4()
 
@@ -101,7 +99,9 @@ exports.handler = async (event) => {
            .input('lattitude', sql.Float, lattitude)
            .input('longitude', sql.Float, longitude)
            .input('customerEmail', sql.NVarChar, Email)
-           .query('Insert into TempUserInfo(Guid, CustomerId, ExistingCardId, ProposedCardId, Lattitude, Longitude, CustomerEmail) values(@guid, @customerId, @existingCardTypeId, @proposedCardTypeId, @lattitude, @longitude, @customerEmail)')
+           .input('deviceLocation', sql.NVarChar, DeviceLocation)
+           .input('city', sql.NVarChar, City)
+           .query('Insert into TempUserInfo(Guid, CustomerId, ExistingCardId, ProposedCardId, Lattitude, Longitude, CustomerEmail, DeviceLocation, CustomerBaseLocation) values(@guid, @customerId, @existingCardTypeId, @proposedCardTypeId, @lattitude, @longitude, @customerEmail, @deviceLocation, @city)')
 
         console.log(result)
 
@@ -112,8 +112,6 @@ exports.handler = async (event) => {
             CustomerGuid: guid,
             MessageType: '1'
         }
-
-        // Load the AWS SDK for Node.js
 
 // Set region
         AWS.config.update({region: 'us-west-2'});
@@ -127,18 +125,6 @@ exports.handler = async (event) => {
         // Create promise and SNS service object
         var publishTextPromise = await new AWS.SNS({apiVersion: '2010-03-31'}).publish(params).promise();
 
-        // Handle promise's fulfilled/rejected states
-
-        console.log(publishTextPromise)
-       /* publishTextPromise.then(
-        function(data) {
-            console.log(`Message ${params.Message} send sent to the topic ${params.TopicArn}`);
-            console.log("MessageID is " + data.MessageId);
-        }).catch(
-            function(err) {
-            console.error(err, err.stack);
-        }); */
-
     }
     catch(err)
     {
@@ -150,7 +136,6 @@ exports.handler = async (event) => {
         }
     }
 
-    // TODO implement
     const response = {
         statusCode: 200,
         body: JSON.stringify('Data successfully processed'),

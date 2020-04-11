@@ -12,11 +12,14 @@ exports.handler = async (event) => {
     const url = process.env.HEREURL
     const key = process.env.APIKEY
 
+    console.log("eventis",event)
+    console.log("custid",event.Records[0].body)
+
     if(event.Records === undefined) {
         customerId = event.customerId
     }
     else {
-        customerId = event.Records[0].messageAttributes.CustomerId['stringValue']
+        customerId = JSON.parse(event.Records[0].body).customerId
     }
 
     console.log("Customer id is ", customerId)
