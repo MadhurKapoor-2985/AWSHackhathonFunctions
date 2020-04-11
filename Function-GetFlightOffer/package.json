@@ -1,0 +1,16 @@
+{
+  "name": "function-getflightoffer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Madhur Kapoor",
+  "license": "ISC",
+  "dependencies": {
+    "amadeus": "^4.0.0",
+    "aws-sdk": "^2.656.0",
+    "axios": "^0.19.2"
+  }
+}
